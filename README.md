@@ -7,6 +7,7 @@ The project is for my dissertation for the MSc Geographic Data Science course at
 This work is under the supervision of Dr. Olga Gkountouna (academic supervisor), and Chris Vardy, and Callum Scooby from Geolytix as this dissertation is provided through the CDRC's Masters Dissertation Scheme.
 
 ## Structure
+```text
 POI-and-Airbnb-Guest-Modelling/
 ├── data/              # Raw and cleaned data (not committed)
 ├── notebooks/         # Jupyter notebooks for each city
@@ -15,6 +16,7 @@ POI-and-Airbnb-Guest-Modelling/
 ├── README.md          # This file
 ├── .gitignore         # Files to exclude from version control
 └── environment.yml    # Conda environment file
+```
 
 ## Getting Started
 
