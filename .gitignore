@@ -1,0 +1,13 @@
+```bash
+# Jupyter artifacts
+.ipynb_checkpoints/
+*.ipynb~
+
+# Data files
+data/*
+
+# System files
+.DS_Store
+.env
+__pycache__/
+*.pyc
