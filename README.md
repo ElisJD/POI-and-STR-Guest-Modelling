@@ -17,14 +17,6 @@ POI-and-str-Guest-Modelling/
 └── .gitignore         # Files to exclude from version control
 ```
 
-## Getting Started
-
-### Setup Environment
-```bash
-conda env create -f environment.yml
-conda activate str-modelling
-```
-
 ## Author
 Elis Davies
 
