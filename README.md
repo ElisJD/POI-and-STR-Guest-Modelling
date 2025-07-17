@@ -1,6 +1,6 @@
-# POI and Airbnb Guest Modelling
+# POI and Short Term Rental Guest Modelling
 
-This project analyses Airbnb listing patterns and guest behaviour in London and Edinburgh, integrating POI (Point of Interest) data to enhance predictive modelling.
+This project analyses short term rental (STR) listing patterns and guest behaviour in London and Edinburgh, integrating POI (Point of Interest) data to enhance predictive modelling.
 
 The project is for my dissertation for the MSc Geographic Data Science course at the University of Liverpool.
 
@@ -8,7 +8,7 @@ This work is under the supervision of Dr. Olga Gkountouna (academic supervisor),
 
 ## Structure
 ```text
-POI-and-Airbnb-Guest-Modelling/
+POI-and-str-Guest-Modelling/
 ├── data/              # Raw and cleaned data (not committed)
 ├── notebooks/         # Jupyter notebooks for each city
 ├── scripts/           # Python scripts for data processing/modeling
@@ -23,7 +23,7 @@ POI-and-Airbnb-Guest-Modelling/
 ### Setup Environment
 ```bash
 conda env create -f environment.yml
-conda activate airbnb-modelling
+conda activate str-modelling
 ```
 
 ## Author

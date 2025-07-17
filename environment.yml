@@ -1,4 +1,4 @@
-name: airbnb-modelling
+name: STR-modelling
 channels:
   - defaults
   - conda-forge
