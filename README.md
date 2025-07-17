@@ -14,8 +14,7 @@ POI-and-str-Guest-Modelling/
 ├── scripts/           # Python scripts for data processing/modeling
 ├── results/           # Outputs like charts or model results
 ├── README.md          # This file
-├── .gitignore         # Files to exclude from version control
-└── environment.yml    # Conda environment file
+└── .gitignore         # Files to exclude from version control
 ```
 
 ## Getting Started
