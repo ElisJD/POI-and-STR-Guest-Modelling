@@ -119,7 +119,7 @@ def run_modelling_pipeline(X, y, original_y):
 
     # 5. Get Feature Importances
     importances = pd.Series(best_model.feature_importances_, index=X.columns)
-    sorted_importances = importances.sort_values(ascending=False).head(20)
+    sorted_importances = importances.sort_values(ascending=False).head(10)
 
     # 6. Plot Feature Importances
     #plt.figure(figsize=(10, 6))
@@ -134,7 +134,7 @@ def run_modelling_pipeline(X, y, original_y):
     # 6. Plot Feature Importances
     plt.figure(figsize=(12, 10))
     sns.barplot(x=sorted_importances.values, y=sorted_importances.index, palette="viridis")
-    plt.title('Top 20 Most Important POI Features for Explaining Airbnb Revenue', fontsize=16)
+    plt.title('Top 10 Most Important POI Features', fontsize=16)
     plt.xlabel('Importance Score', fontsize=12)
     plt.ylabel('POI Category', fontsize=12)
     plt.tight_layout()
