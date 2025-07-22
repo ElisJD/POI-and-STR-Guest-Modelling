@@ -5,6 +5,7 @@
 
 # Data files
 data/*
+notebooks/london/overture/*
 
 # System files
 .DS_Store
