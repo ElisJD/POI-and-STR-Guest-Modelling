@@ -290,53 +290,113 @@ def plot_significance(df, gwr_feature_columns, base_geodata, ncols=3):
     plt.show()
 
 # Function 7: Geographically Weighted Random Forest
-def geographically_weighted_rf(gdf, target, predictors, k_neighbors=100, epsg=27700, return_feature_importance=True):
-    # Reproject to metric CRS
-    gdf = gdf.to_crs(epsg=epsg).copy()
-    
-    # Coordinates for spatial neighbors
-    coords = np.array([[geom.centroid.x, geom.centroid.y] for geom in gdf.geometry])
+def geographically_weighted_random_forest(gdf, target, X_cols, coords, k_neighbours=100, min_local_data=10):
+    """
+    Runs Geographically Weighted Random Forest (GWRF) for a given target variable.
+
+    Parameters:
+    - gdf: GeoDataFrame with spatial units and input features.
+    - target: str, name of the target variable.
+    - X_cols: list of str, predictor variable column names.
+    - coords: Nx2 array of centroid coordinates.
+    - k_neighbours: int, number of neighbours for local fitting.
+    - min_local_data: int, minimum valid observations required to train local RF.
+
+    Returns:
+    - gdf: GeoDataFrame with prediction, local R2, feature importances, and top POI columns added.
+    """
+
+    # Step 1: Build spatial index
     tree = cKDTree(coords)
 
+    # Step 2: Prepare outputs
     predictions = []
-    importances = []
+    local_r2s = []
+    feature_importance_list = []
 
     for i, point in enumerate(coords):
-        distances, indices = tree.query(point, k=k_neighbors)
+        distances, indices = tree.query(point, k=k_neighbours)
+        raw_local_data = gdf.iloc[indices]
 
-        local_data = gdf.iloc[indices]
-        local_data = local_data.dropna(subset=[target] + predictors)
-
-        if len(local_data) < 10:
+        # Step 3: Drop missing values
+        local_data = raw_local_data.dropna(subset=[target] + X_cols)
+        if len(local_data) < min_local_data:
             predictions.append(np.nan)
-            if return_feature_importance:
-                importances.append([np.nan] * len(predictors))
+            local_r2s.append(np.nan)
+            feature_importance_list.append([np.nan] * len(X_cols))
             continue
 
-        X_local = local_data[predictors].values
+        # Step 4: Bisquare weights
+        valid_idx_mask = raw_local_data.index.isin(local_data.index)
+        valid_distances = distances[valid_idx_mask]
+        D = valid_distances.max()
+        weights = (1 - (valid_distances / D) ** 2) ** 2
+        weights[valid_distances >= D] = 0
+        prob = weights / weights.sum()
+
+        # Step 5: Bootstrap sample
+        X_local = local_data[X_cols].values
         y_local = local_data[target].values
+        sample_idx = np.random.choice(len(X_local), size=len(X_local), p=prob, replace=True)
+        X_weighted = X_local[sample_idx]
+        y_weighted = y_local[sample_idx]
 
+        # Step 6: Fit and evaluate
         rf = RandomForestRegressor(n_estimators=100, random_state=42)
-        rf.fit(X_local, y_local)
+        rf.fit(X_weighted, y_weighted)
+        y_local_pred = rf.predict(X_local)
+        r2_local = r2_score(y_local, y_local_pred)
 
-        X_pred = gdf.iloc[[i]][predictors].values
+        # Step 7: Predict for focal point
+        X_pred = gdf.iloc[[i]][X_cols].values
         pred = rf.predict(X_pred)[0]
-        predictions.append(pred)
 
-        if return_feature_importance:
-            importances.append(rf.feature_importances_)
+        # Step 8: Save outputs
+        predictions.append(pred)
+        local_r2s.append(r2_local)
+        feature_importance_list.append(rf.feature_importances_)
 
         if i % 50 == 0:
-            print(f"Processed {i}/{len(gdf)} points")
+            print(f"Processed {i}/{len(gdf)} polygons")
 
-    # Add predictions to GeoDataFrame
+    # Step 9: Store back into GeoDataFrame
     gdf["grf_prediction"] = predictions
+    gdf["grf_local_r2"] = local_r2s
 
-    # Add feature importances
-    if return_feature_importance:
-        importance_cols = [f"{col}_importance" for col in predictors]
-        importances = np.array(importances)
-        for i, col in enumerate(importance_cols):
-            gdf[col] = importances[:, i]
+    importances_df = pd.DataFrame(feature_importance_list,
+                                  columns=[f"{col}_importance" for col in X_cols])
+    gdf = gdf.join(importances_df)
 
-    return gdf, target
+    # Step 10: Identify most important POI
+    importance_cols = [f"{col}_importance" for col in X_cols]
+    gdf["top_poi"] = gdf[importance_cols].idxmax(axis=1)
+    gdf["top_poi_clean"] = gdf["top_poi"].str.replace("_density_log_importance", "", regex=False)
+    gdf["top_poi_clean"] = gdf["top_poi_clean"].str.replace("_log_importance", "", regex=False)
+
+    return gdf
+
+# Function 8: Evaluate Geographically Weighted Random Forest
+def evaluate_grf_model(gdf, target_col, prediction_col="grf_prediction"):
+    # Filter valid observations
+    valid_mask = gdf[prediction_col].notna() & gdf[target_col].notna()
+    y_true_log = gdf.loc[valid_mask, target_col]
+    y_pred_log = gdf.loc[valid_mask, prediction_col]
+
+    # Metrics on log scale
+    rmse_log = np.sqrt(mean_squared_error(y_true_log, y_pred_log))
+    mae_log = mean_absolute_error(y_true_log, y_pred_log)
+    r2 = r2_score(y_true_log, y_pred_log)
+
+    # Metrics on original scale
+    y_true_orig = np.exp(y_true_log)
+    y_pred_orig = np.exp(y_pred_log)
+    rmse_orig = np.sqrt(mean_squared_error(y_true_orig, y_pred_orig))
+    mae_orig = mean_absolute_error(y_true_orig, y_pred_orig)
+
+    print("GRF Evaluation Metrics")
+    print("---------------------------------")
+    print(f"R² (log scale):             {r2:.3f}")
+    print(f"RMSE (log scale):           {rmse_log:.3f}")
+    print(f"MAE  (log scale):           {mae_log:.3f}")
+    print(f"RMSE (original scale):    {rmse_orig:,.2f}")
+    print(f"MAE  (original scale):     {mae_orig:,.2f}")
