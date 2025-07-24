@@ -16,6 +16,11 @@ import matplotlib.font_manager as fm
 import xgboost as xgb
 import shap
 from scipy.spatial import cKDTree
+from matplotlib.patches import Patch
+
+# Load Cambria font
+cambria_path = "/Library/Fonts/Microsoft/Cambria.ttf"  # Adjust path if needed
+cambria_prop = fm.FontProperties(fname=cambria_path)
 
 
 # Function 1: Perparing Data
@@ -119,7 +124,7 @@ def run_modelling_pipeline(X, y, original_y):
 
     # 5. Get Feature Importances
     importances = pd.Series(best_model.feature_importances_, index=X.columns)
-    sorted_importances = importances.sort_values(ascending=False).head(10)
+    sorted_importances = importances.sort_values(ascending=False).head(6)
 
     # 6. Plot Feature Importances
     #plt.figure(figsize=(10, 6))
@@ -132,16 +137,43 @@ def run_modelling_pipeline(X, y, original_y):
     #plt.show()
 
     # 6. Plot Feature Importances
-    plt.figure(figsize=(12, 10))
-    sns.barplot(x=sorted_importances.values, y=sorted_importances.index, palette="viridis")
-    plt.title('Top 10 Most Important POI Features', fontsize=16)
-    plt.xlabel('Importance Score', fontsize=12)
-    plt.ylabel('POI Category', fontsize=12)
+    #plt.figure(figsize=(12, 10))
+    #sns.barplot(x=sorted_importances.values, y=sorted_importances.index, palette="viridis")
+    #plt.xlabel('Importance Score', fontsize=12)
+    #plt.ylabel('POI Category (log)', fontsize=12)
+    #plt.tight_layout()
+    #plt.show()
+
+    def clean_label(label):
+        return (
+            label.replace('_density_log', '')
+                .replace('_', ' ')
+                .title()
+        )
+
+    sorted_importances_clean = sorted_importances.copy()
+    sorted_importances_clean.index = sorted_importances_clean.index.map(clean_label)
+
+    # --- Step 2: Plot ---
+    plt.figure(figsize=(10, 8))
+    sns.barplot(
+        x=sorted_importances_clean.values,
+        y=sorted_importances_clean.index
+    )
+
+    # --- Step 3: Axis & font formatting ---
+    plt.xlabel('Importance Score', fontsize=16, fontproperties=cambria_prop)
+    plt.ylabel('POI Category', fontsize=16, fontproperties=cambria_prop)
+
+    # Set tick font
+    plt.xticks(fontproperties=cambria_prop, fontsize=12)
+    plt.yticks(fontproperties=cambria_prop, fontsize=12)
+
     plt.tight_layout()
     plt.show()
 
     # 7. Print the top 10 most important features
-    print("\n--- Top 10 Most Important Features ---")
+    print("\n--- Top 6 Most Important Features ---")
     print(sorted_importances.head(10))
 
     # 8. Plot Predicted vs Actual for Train and Test
@@ -213,9 +245,8 @@ def map_gwr_coefficients(df, gwr_results, gwr_feature_columns, base_geodata, nco
             column=f'gwr_coeff_{feature_name}',
             ax=ax,
             legend=True,
-            legend_kwds={'label': f"GWR Coefficient for {feature_name}", 'orientation': "horizontal"},
+            legend_kwds={'label': f"Coefficient", 'orientation': "horizontal"},
         )
-        ax.set_title(f'{feature_name}', fontsize=14)
         ax.set_axis_off()
 
     # Hide unused axes
@@ -288,6 +319,110 @@ def plot_significance(df, gwr_feature_columns, base_geodata, ncols=3):
     plt.suptitle("GWR: Significant vs Non-Significant Coefficients", fontsize=24)
     plt.tight_layout()
     plt.show()
+
+def plot_combined_gwr_maps(df, gwr_feature_columns, base_geodata):
+    """
+    Plot side-by-side coefficient and significance maps for each GWR feature.
+    """
+    num_features = len(gwr_feature_columns)
+    fig, axes = plt.subplots(nrows=num_features, ncols=2, figsize=(14, 4 * num_features))
+    if num_features == 1:
+        axes = np.array([axes])  # Ensure 2D array for consistency
+
+    # Get global min/max for all coefficients to normalize color scale
+    coeff_mins = [df[f'gwr_coeff_{f}'].min() for f in gwr_feature_columns]
+    coeff_maxs = [df[f'gwr_coeff_{f}'].max() for f in gwr_feature_columns]
+    vmin = min(coeff_mins)
+    vmax = max(coeff_maxs)
+
+    significance_cmap = ListedColormap(['#FC8D62', '#66C2A5'])  # Non-significant (red), Significant (green)
+    significance_legend = [
+        Patch(facecolor='#66C2A5', edgecolor='black', label='Significant'),
+        Patch(facecolor='#FC8D62', edgecolor='black', label='Non-significant')
+    ]
+
+    panel_labels = [chr(65 + i) for i in range(2 * num_features)]
+
+    for row_idx, feature in enumerate(gwr_feature_columns):
+        pretty_name = feature.replace('_density_log', '').replace('_', ' ').title()
+
+        # Coefficient plot
+        ax_coeff = axes[row_idx, 0]
+        base_geodata.plot(ax=ax_coeff, color='lightgrey')
+        df.plot(
+            column=f'gwr_coeff_{feature}',
+            ax=ax_coeff,
+            cmap='viridis',
+            legend=False,
+            vmin=vmin,
+            vmax=vmax,
+        )
+        ax_coeff.text(
+            0.5, -0.08, f"{pretty_name} – Coefficient",
+            transform=ax_coeff.transAxes,
+            ha='center', va='top',
+            fontsize=14, fontproperties=cambria_prop
+        )
+        ax_coeff.text(-0.05, 1.05, panel_labels[row_idx * 2],
+                    transform=ax_coeff.transAxes,
+                    fontsize=14, va='top', ha='left',
+                    fontproperties=cambria_prop)
+        ax_coeff.set_axis_off()
+
+        # Significance plot
+        ax_sig = axes[row_idx, 1]
+        base_geodata.plot(ax=ax_sig, color='lightgrey')
+        df.plot(
+            column=f'significance_{feature}',
+            ax=ax_sig,
+            cmap=significance_cmap,
+            legend=False,
+        )
+        ax_sig.text(
+            0.5, -0.08, f"{pretty_name} – Significance",
+            transform=ax_sig.transAxes,
+            ha='center', va='top',
+            fontsize=14, fontproperties=cambria_prop
+        )
+        ax_sig.text(-0.05, 1.05, panel_labels[row_idx * 2 + 1],
+                    transform=ax_sig.transAxes,
+                    fontsize=14, va='top', ha='left',
+                    fontproperties=cambria_prop)
+        ax_sig.set_axis_off()
+        ax_sig.text(-0.05, 1.05, panel_labels[row_idx * 2 + 1], transform=ax_sig.transAxes,
+                    fontsize=14, va='top', ha='left', fontproperties=cambria_prop)
+
+    # Add shared colorbar for coefficients
+    cax = fig.add_axes([0.14, 0.07, 0.28, 0.01])  # [left, bottom, width, height]
+    sm = plt.cm.ScalarMappable(cmap='viridis', norm=plt.Normalize(vmin=vmin, vmax=vmax))
+    sm._A = []
+    cbar = fig.colorbar(sm, cax=cax, orientation='horizontal')
+    cbar.set_label('Coefficient Value', fontsize=14, fontproperties=cambria_prop)
+    # Set tick labels font
+    for label in cbar.ax.get_xticklabels():
+        label.set_fontproperties(cambria_prop)
+        label.set_fontsize(12)
+
+    # Add legend for significance
+    legend = fig.legend(
+    handles=significance_legend,
+    title='Significance',
+    loc='lower center',
+    bbox_to_anchor=(0.725, 0.06),
+    ncol=2,
+    fontsize=14
+    )
+
+    # Set font for legend title and labels
+    legend.get_title().set_fontproperties(cambria_prop)
+    legend.get_title().set_fontsize(14)
+    for text in legend.get_texts():
+        text.set_fontproperties(cambria_prop),
+        text.set_fontsize(12)
+
+    plt.tight_layout(rect=[0, 0.1, 1, 0.97])
+    #plt.suptitle("GWR Results: Coefficients and Significance Maps", fontsize=16, fontproperties=cambria_prop)
+    #return fig
 
 # Function 7: Geographically Weighted Random Forest
 def geographically_weighted_random_forest(gdf, target, X_cols, coords, k_neighbours=100, min_local_data=10):
