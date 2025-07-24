@@ -421,8 +421,98 @@ def plot_combined_gwr_maps(df, gwr_feature_columns, base_geodata):
         text.set_fontsize(12)
 
     plt.tight_layout(rect=[0, 0.1, 1, 0.97])
-    #plt.suptitle("GWR Results: Coefficients and Significance Maps", fontsize=16, fontproperties=cambria_prop)
-    #return fig
+
+def plot_combined_gwr_maps_side_legends(df, gwr_feature_columns, base_geodata):
+    """
+    Plot side-by-side coefficient and significance maps for each GWR feature,
+    with vertical legends on the right-hand side.
+    """
+    num_features = len(gwr_feature_columns)
+    fig, axes = plt.subplots(nrows=num_features, ncols=2, figsize=(18, 4 * num_features))
+    if num_features == 1:
+        axes = np.array([axes]) 
+
+    # --- Shared value range for coefficient color scale ---
+    coeff_mins = [df[f'gwr_coeff_{f}'].min() for f in gwr_feature_columns]
+    coeff_maxs = [df[f'gwr_coeff_{f}'].max() for f in gwr_feature_columns]
+    vmin, vmax = min(coeff_mins), max(coeff_maxs)
+
+    significance_cmap = ListedColormap(['#FC8D62', '#66C2A5']) 
+    significance_legend = [
+        Patch(facecolor='#66C2A5', edgecolor='black', label='Significant'),
+        Patch(facecolor='#FC8D62', edgecolor='black', label='Non-significant')
+    ]
+
+    panel_labels = [chr(65 + i) for i in range(2 * num_features)]
+
+    for row_idx, feature in enumerate(gwr_feature_columns):
+        pretty_name = feature.replace('_density_log', '').replace('_', ' ').title()
+
+        # Coefficient map
+        ax_coeff = axes[row_idx, 0]
+        base_geodata.plot(ax=ax_coeff, color='lightgrey')
+        df.plot(
+            column=f'gwr_coeff_{feature}', ax=ax_coeff,
+            cmap='viridis', vmin=vmin, vmax=vmax, legend=False
+        )
+        ax_coeff.text(
+            0.5, -0.08, f"{pretty_name} – Coefficient",
+            transform=ax_coeff.transAxes,
+            ha='center', va='top',
+            fontsize=18, fontproperties=cambria_prop
+        )
+        ax_coeff.text(-0.05, 1.05, panel_labels[row_idx * 2],
+                      transform=ax_coeff.transAxes,
+                      fontsize=18, va='top', ha='left',
+                      fontproperties=cambria_prop)
+        ax_coeff.set_axis_off()
+
+        # Significance map
+        ax_sig = axes[row_idx, 1]
+        base_geodata.plot(ax=ax_sig, color='lightgrey')
+        df.plot(
+            column=f'significance_{feature}', ax=ax_sig,
+            cmap=significance_cmap, legend=False
+        )
+        ax_sig.text(
+            0.5, -0.08, f"{pretty_name} – Significance",
+            transform=ax_sig.transAxes,
+            ha='center', va='top',
+            fontsize=18, fontproperties=cambria_prop
+        )
+        ax_sig.text(-0.05, 1.05, panel_labels[row_idx * 2 + 1],
+                    transform=ax_sig.transAxes,
+                    fontsize=18, va='top', ha='left',
+                    fontproperties=cambria_prop)
+        ax_sig.set_axis_off()
+
+    # --- Add vertical coefficient colorbar on the right ---
+    cax = fig.add_axes([0.81, 0.42, 0.015, 0.25])  # [left, bottom, width, height]
+    sm = plt.cm.ScalarMappable(cmap='viridis', norm=plt.Normalize(vmin=vmin, vmax=vmax))
+    sm._A = []
+    cbar = fig.colorbar(sm, cax=cax, orientation='vertical')
+    cbar.set_label('Coefficient Value', fontsize=16, fontproperties=cambria_prop, labelpad=10)
+    for label in cbar.ax.get_yticklabels():
+        label.set_fontproperties(cambria_prop)
+        label.set_fontsize(14)
+
+    # --- Add vertical significance legend below the colorbar ---
+    legend_ax = fig.add_axes([0.81, 0.28, 0.08, 0.1])  # [left, bottom, width, height]
+    legend_ax.axis('off')
+    legend = legend_ax.legend(
+        handles=significance_legend,
+        title='Significance',
+        loc='upper left',
+        frameon=False,
+        fontsize=16
+    )
+    legend.get_title().set_fontproperties(cambria_prop)
+    legend.get_title().set_fontsize(16)
+    for text in legend.get_texts():
+        text.set_fontproperties(cambria_prop)
+        text.set_fontsize(16)
+
+    plt.tight_layout(rect=[0, 0, 0.9, 1])
 
 # Function 7: Geographically Weighted Random Forest
 def geographically_weighted_random_forest(gdf, target, X_cols, coords, k_neighbours=100, min_local_data=10):
