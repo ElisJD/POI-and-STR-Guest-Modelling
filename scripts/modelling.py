@@ -17,7 +17,10 @@ import xgboost as xgb
 import shap
 from scipy.spatial import cKDTree
 from matplotlib.patches import Patch
+from geo_northarrow import add_north_arrow
+from matplotlib_scalebar.scalebar import ScaleBar
 
+from matplotlib.font_manager import FontProperties
 # Load Cambria font
 cambria_path = "/Library/Fonts/Microsoft/Cambria.ttf"  # Adjust path if needed
 cambria_prop = fm.FontProperties(fname=cambria_path)
@@ -466,6 +469,9 @@ def plot_combined_gwr_maps_side_legends(df, gwr_feature_columns, base_geodata):
                       fontsize=18, va='top', ha='left',
                       fontproperties=cambria_prop)
         ax_coeff.set_axis_off()
+        # For the first map, add a north arrow
+        if row_idx == 0:
+            add_north_arrow(ax_coeff, scale=1.2, xlim_pos=.1025, ylim_pos=.880, color='#000', text_scaler=0, text_yT=-1.25)
 
         # Significance map
         ax_sig = axes[row_idx, 1]
@@ -485,6 +491,10 @@ def plot_combined_gwr_maps_side_legends(df, gwr_feature_columns, base_geodata):
                     fontsize=18, va='top', ha='left',
                     fontproperties=cambria_prop)
         ax_sig.set_axis_off()
+        # For the last map, add a scale bar
+        if row_idx == num_features - 1:
+            scalebar = ScaleBar(1, location="lower right", units="m", color="black", font_properties={"size": 12})
+            ax_sig.add_artist(scalebar)
 
     # --- Add vertical coefficient colorbar on the right ---
     cax = fig.add_axes([0.81, 0.42, 0.015, 0.25])  # [left, bottom, width, height]
@@ -511,7 +521,6 @@ def plot_combined_gwr_maps_side_legends(df, gwr_feature_columns, base_geodata):
     for text in legend.get_texts():
         text.set_fontproperties(cambria_prop)
         text.set_fontsize(16)
-
     plt.tight_layout(rect=[0, 0, 0.9, 1])
 
 # Function 7: Geographically Weighted Random Forest
