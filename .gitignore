@@ -11,4 +11,4 @@ notebooks/london/overture/*
 .DS_Store
 .env
 __pycache__/
-*.pyc
+*.pyc.DS_Store
