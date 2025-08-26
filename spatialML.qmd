@@ -1,0 +1,446 @@
+---
+title: "spatialML"
+format: html
+editor: visual
+---
+
+```{r}
+library(sf)
+library(SpatialML)
+```
+
+# London
+
+```{r}
+gdf <- st_read('data/london/london_airbnb_tourism_fs.gpkg')
+
+features_logged <- c(
+  'air_travel_density_log',
+  'arts_other_density_log',
+  'bars_nightlife_density_log',
+  'cafes_bakeries_density_log',
+  'cultural_institution_density_log',
+  'dining_other_density_log',
+  'entertainment_nightlife_density_log',
+  'event_space_density_log',
+  'fast_food_density_log',
+  'food_drink_production_density_log',
+  'full_service_restaurant_density_log',
+  'high_end_dining_density_log',
+  'historic_landmark_density_log',
+  'leisure_activity_centre_density_log',
+  'local_public_transit_density_log',
+  'lodging_density_log',
+  'major_attraction_density_log',
+  'major_transit_hub_density_log',
+  'mobility_services_density_log',
+  'music_cinema_venue_density_log',
+  'nature_trail_density_log',
+  'outdoors_other_density_log',
+  'park_garden_density_log',
+  'public_art_density_log',
+  'public_plaza_square_density_log',
+  'retail_books_hobbies_density_log',
+  'retail_fashion_apparel_density_log',
+  'retail_food_beverage_density_log',
+  'retail_gifts_misc_density_log',
+  'retail_health_beauty_density_log',
+  'retail_home_electronics_density_log',
+  'retail_luxury_density_log',
+  'retail_markets_plazas_density_log',
+  'retail_other_density_log',
+  'rural_agricultural_density_log',
+  'tourism_services_density_log',
+  'transport_infrastructure_density_log',
+  'travel_other_density_log',
+  'waterfront_river_density_log'
+)
+```
+
+```{r}
+# Calculate centroids if geometries are polygons
+gdf_centroids <- st_centroid(gdf)
+
+# Extract coordinates
+coords <- st_coordinates(gdf_centroids)
+
+# Add to data frame
+gdf$X <- coords[, 1]
+gdf$Y <- coords[, 2]
+
+# Convert to plain data.frame
+df <- as.data.frame(gdf)
+
+# Create coords matrix
+coords_mat <- df[, c("X", "Y")]
+```
+
+## Revenue
+
+```{r}
+# 1. Remove rows with NA in target
+df_clean <- df[!is.na(df$total_revenue_log), ]
+coords_clean <- df_clean[, c("X", "Y")]
+
+# 2. Define formula
+grf_formula <- as.formula(paste("total_revenue_log ~", paste(features_logged, collapse = " + ")))
+
+# 3. Run the GRF model
+grf_model <- grf(
+  formula = grf_formula,
+  dframe = df_clean,
+  bw = 50,
+  kernel = "adaptive",
+  coords = coords_clean,
+  ntree = 500,
+  importance = "impurity",
+  geo.weighted = TRUE,
+  forests = TRUE,
+  nthreads = 4
+)
+
+# 4. 🔐 Use the clean dataset for post-model steps
+model_data <- df_clean  # This now safely matches all grf_model outputs
+
+# 5. Add predictions and residuals
+model_data$predicted_log <- grf_model$LGofFit$Predicted
+model_data$residuals_log <- grf_model$LGofFit$Residuals
+
+# 6. Add local variable importance
+local_importance <- grf_model$Local.Variable.Importance
+model_data <- cbind(model_data, local_importance)
+
+# 7. (Optional) Convert to sf if you want to map it
+library(sf)
+gdf_model <- st_as_sf(model_data, coords = c("X", "Y"), crs = 4326)
+```
+
+## Volume
+
+```{r}
+# 1. Remove rows with NA in target
+df_clean <- df[!is.na(df$total_volume_log), ]
+coords_clean <- df_clean[, c("X", "Y")]
+
+# 2. Define formula (already done above)
+grf_formula <- as.formula(paste("total_volume_log ~", paste(features_logged, collapse = " + ")))
+
+# 3. Run the GRF model
+grf_model <- grf(
+  formula = grf_formula,
+  dframe = df_clean,
+  bw = 50,
+  kernel = "adaptive",
+  coords = coords_clean,
+  ntree = 500,
+  importance = "impurity",
+  geo.weighted = TRUE,
+  forests = TRUE,
+  nthreads = 4
+)
+
+# 4. 🔐 Use the clean dataset for post-model steps
+model_data <- df_clean  # This now safely matches all grf_model outputs
+
+# 5. Add predictions and residuals
+model_data$predicted_log <- grf_model$LGofFit$Predicted
+model_data$residuals_log <- grf_model$LGofFit$Residuals
+
+# 6. Add local variable importance
+local_importance <- grf_model$Local.Variable.Importance
+model_data <- cbind(model_data, local_importance)
+
+# 7. (Optional) Convert to sf if you want to map it
+library(sf)
+gdf_model <- st_as_sf(model_data, coords = c("X", "Y"), crs = 4326)
+```
+
+## Density
+
+```{r}
+# 1. Remove rows with NA in target
+df_clean <- df[!is.na(df$total_tourism_intensity_km2_log), ]
+coords_clean <- df_clean[, c("X", "Y")]
+
+# 2. Define formula (already done above)
+grf_formula <- as.formula(paste("total_tourism_intensity_km2_log ~", paste(features_logged, collapse = " + ")))
+
+# 3. Run the GRF model
+grf_model <- grf(
+  formula = grf_formula,
+  dframe = df_clean,
+  bw = 50,
+  kernel = "adaptive",
+  coords = coords_clean,
+  ntree = 500,
+  importance = "impurity",
+  geo.weighted = TRUE,
+  forests = TRUE,
+  nthreads = 4
+)
+
+# 4. 🔐 Use the clean dataset for post-model steps
+model_data <- df_clean  # This now safely matches all grf_model outputs
+
+# 5. Add predictions and residuals
+model_data$predicted_log <- grf_model$LGofFit$Predicted
+model_data$residuals_log <- grf_model$LGofFit$Residuals
+
+# 6. Add local variable importance
+local_importance <- grf_model$Local.Variable.Importance
+model_data <- cbind(model_data, local_importance)
+
+# 7. (Optional) Convert to sf if you want to map it
+library(sf)
+gdf_model <- st_as_sf(model_data, coords = c("X", "Y"), crs = 4326)
+```
+
+# Edinburgh
+
+```{r}
+gdf <- st_read('data/edinburgh/edinburgh_airbnb_tourism_fs.gpkg')
+```
+
+```{r}
+# Calculate centroids if geometries are polygons
+gdf_centroids <- st_centroid(gdf)
+
+# Extract coordinates
+coords <- st_coordinates(gdf_centroids)
+
+# Add to data frame
+gdf$X <- coords[, 1]
+gdf$Y <- coords[, 2]
+
+# Convert to plain data.frame
+df <- as.data.frame(gdf)
+
+# Create coords matrix
+coords_mat <- df[, c("X", "Y")]
+```
+
+## GWR
+
+```{r}
+features_logged <- c(
+  "cultural_institution_density",
+  "cafes_bakeries_density_log",
+  "bars_nightlife_density_log",
+  "local_public_transit_density_log"
+)
+```
+
+### Revenue
+
+```{r}
+library(sf)
+library(GWmodel)
+library(spgwr)
+
+df_clean <- df[
+  !is.na(df$total_revenue_log) &
+  !is.nan(df$total_revenue_log) &
+  is.finite(df$total_revenue_log), 
+]
+
+# Convert to sf using X and Y columns
+df_clean_sf <- st_as_sf(df_clean, coords = c("X", "Y"), crs = 4326)  # WGS84 assumed
+
+# Reproject to British National Grid (EPSG:27700) — GWR needs projected coords
+df_clean_sf <- st_transform(df_clean_sf, crs = 27700)
+
+# Define formula
+gwr_formula <- as.formula(paste("total_revenue_log ~", paste(features_logged, collapse = " + ")))
+
+gwr_model <- gwr(
+  formula = gwr_formula,
+  data = df_clean_sf,
+  bw = 48,
+  adaptive = TRUE
+)
+```
+
+```{r}
+# Clean and ensure all required data
+vars <- c("total_revenue_log", features_logged, "X", "Y")
+df_clean <- df[complete.cases(df[, vars]), vars]
+
+# Confirm numeric coords
+head(df_clean[, c("X", "Y")])
+```
+
+```{r}
+gwr_formula <- as.formula(paste("total_revenue_log ~", paste(features_logged, collapse = " + ")))
+```
+
+```{r}
+# Ensure coords are numeric matrix, not list/data.frame
+coords_mat <- as.matrix(df_clean[, c("X", "Y")])
+storage.mode(coords_mat) <- "double"  # ensures correct numeric type
+
+bw_opt <- gwr.sel(
+  formula = gwr_formula,
+  data = df_clean,
+  coords = coords_mat,
+  adapt = TRUE
+)
+```
+
+```{r}
+gwr_model <- gwr(
+  formula = gwr_formula,
+  data = df_clean,
+  coords = coords_mat,
+  adapt = bw_opt,
+  hatmatrix = TRUE,
+  se.fit = TRUE
+)
+```
+
+```{r}
+gwr_model
+```
+
+```{r}
+# Assuming you used `gwr()` from the spgwr package
+local_r2 <- gwr_model$SDF$localR2
+```
+
+```{r}
+# Add local R² values back to the spatial data
+df_clean_sf$localR2 <- local_r2
+```
+
+## GWRF
+
+### Revenue
+
+```{r}
+# 1. Remove rows with NA in target
+df_clean <- df[
+  !is.na(df$total_revenue_log) &
+  !is.nan(df$total_revenue_log) &
+  is.finite(df$total_revenue_log), 
+]
+coords_clean <- df_clean[, c("X", "Y")]
+
+# 2. Define formula
+grf_formula <- as.formula(paste("total_revenue_log ~", paste(features_logged, collapse = " + ")))
+
+# 3. Run the GRF model
+grf_model <- grf(
+  formula = grf_formula,
+  dframe = df_clean,
+  bw = 48,
+  kernel = "adaptive",
+  coords = coords_clean,
+  ntree = 500,
+  importance = "impurity",
+  geo.weighted = TRUE,
+  forests = TRUE,
+  nthreads = 4
+)
+
+# 4. 🔐 Use the clean dataset for post-model steps
+model_data <- df_clean  # This now safely matches all grf_model outputs
+
+# 5. Add predictions and residuals
+model_data$predicted_log <- grf_model$LGofFit$Predicted
+model_data$residuals_log <- grf_model$LGofFit$Residuals
+
+# 6. Add local variable importance
+local_importance <- grf_model$Local.Variable.Importance
+model_data <- cbind(model_data, local_importance)
+
+# 7. (Optional) Convert to sf if you want to map it
+library(sf)
+gdf_model <- st_as_sf(model_data, coords = c("X", "Y"), crs = 4326)
+```
+
+### Volume
+
+```{r}
+# 1. Remove rows with NA in target
+df_clean <- df[
+  !is.na(df$total_volume_log) &
+  !is.nan(df$total_volume_log) &
+  is.finite(df$total_volume_log), 
+]
+coords_clean <- df_clean[, c("X", "Y")]
+
+# 2. Define formula
+grf_formula <- as.formula(paste("total_volume_log ~", paste(features_logged, collapse = " + ")))
+
+# 3. Run the GRF model
+grf_model <- grf(
+  formula = grf_formula,
+  dframe = df_clean,
+  bw = 48,
+  kernel = "adaptive",
+  coords = coords_clean,
+  ntree = 500,
+  importance = "impurity",
+  geo.weighted = TRUE,
+  forests = TRUE,
+  nthreads = 4
+)
+
+# 4. 🔐 Use the clean dataset for post-model steps
+model_data <- df_clean  # This now safely matches all grf_model outputs
+
+# 5. Add predictions and residuals
+model_data$predicted_log <- grf_model$LGofFit$Predicted
+model_data$residuals_log <- grf_model$LGofFit$Residuals
+
+# 6. Add local variable importance
+local_importance <- grf_model$Local.Variable.Importance
+model_data <- cbind(model_data, local_importance)
+
+# 7. (Optional) Convert to sf if you want to map it
+library(sf)
+gdf_model <- st_as_sf(model_data, coords = c("X", "Y"), crs = 4326)
+```
+
+### Density
+
+```{r}
+# 1. Remove rows with NA in target
+df_clean <- df[
+  !is.na(df$total_tourism_intensity_km2_log) &
+  !is.nan(df$total_tourism_intensity_km2_log) &
+  is.finite(df$total_tourism_intensity_km2_log), 
+]
+coords_clean <- df_clean[, c("X", "Y")]
+
+# 2. Define formula
+grf_formula <- as.formula(paste("total_tourism_intensity_km2_log ~", paste(features_logged, collapse = " + ")))
+
+# 3. Run the GRF model
+grf_model <- grf(
+  formula = grf_formula,
+  dframe = df_clean,
+  bw = 48,
+  kernel = "adaptive",
+  coords = coords_clean,
+  ntree = 500,
+  importance = "impurity",
+  geo.weighted = TRUE,
+  forests = TRUE,
+  nthreads = 4
+)
+
+# 4. 🔐 Use the clean dataset for post-model steps
+model_data <- df_clean  # This now safely matches all grf_model outputs
+
+# 5. Add predictions and residuals
+model_data$predicted_log <- grf_model$LGofFit$Predicted
+model_data$residuals_log <- grf_model$LGofFit$Residuals
+
+# 6. Add local variable importance
+local_importance <- grf_model$Local.Variable.Importance
+model_data <- cbind(model_data, local_importance)
+
+# 7. (Optional) Convert to sf if you want to map it
+library(sf)
+gdf_model <- st_as_sf(model_data, coords = c("X", "Y"), crs = 4326)
+```
