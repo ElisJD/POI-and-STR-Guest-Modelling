@@ -9,6 +9,7 @@ import seaborn as sns
 from scipy.stats import gaussian_kde
 import contextily as ctx
 import matplotlib.pyplot as plt
+import matplotlib.font_manager as fm
 
 from matplotlib.font_manager import FontProperties
 # Load Cambria font
